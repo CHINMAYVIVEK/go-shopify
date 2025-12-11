@@ -39,6 +39,39 @@ func (app App) AuthorizeUrl(shopName string, state string) (string, error) {
 	return shopUrl.String(), nil
 }
 
+type ClientCredentialsToken struct {
+	AccessToken string `json:"access_token"`
+	Scope       string `json:"scope"`
+	ExpiresIn   int    `json:"expires_in"`
+}
+
+// GetAccessTokenWithClientCredentialsGrant gets an access token using the client credentials grant type.
+// Docs: https://shopify.dev/docs/apps/build/authentication-authorization/access-tokens/client-credentials-grant
+func (app App) GetAccessTokenWithClientCredentialsGrant(ctx context.Context, shopName string) (*ClientCredentialsToken, error) {
+	data := struct {
+		GrantType    string `json:"grant_type"`
+		ClientId     string `json:"client_id"`
+		ClientSecret string `json:"client_secret"`
+	}{
+		GrantType:    "client_credentials",
+		ClientId:     app.ApiKey,
+		ClientSecret: app.ApiSecret,
+	}
+
+	client := app.Client
+	if client == nil {
+		client = MustNewClient(app, shopName, "")
+	}
+
+	req, err := client.NewRequest(ctx, "POST", accessTokenRelPath, data, nil)
+	if err != nil {
+		return nil, err
+	}
+	clientCredentialsToken := &ClientCredentialsToken{}
+	err = client.Do(req, clientCredentialsToken)
+	return clientCredentialsToken, err
+}
+
 func (app App) GetAccessToken(ctx context.Context, shopName string, code string) (string, error) {
 	type Token struct {
 		Token string `json:"access_token"`
